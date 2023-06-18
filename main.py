@@ -5,7 +5,6 @@ import sys
 from dotenv import load_dotenv
 
 
-
 def createConversationJson(history):
     element = {
         "model": "gpt-3.5-turbo",
@@ -37,40 +36,60 @@ def getLastTelegramMessage(api_key):
     return result['result'][length-1]['message']['text']
 
 
+def handleCommand(telegram_bot_key, telegram_chat_id, command):
+    if command == '/zynisch' or command == '#ironisch': return ' sei dabei zynisch und ironisch'
+    if command == '/pesimistisch': return ' sei dabei extrem pesimistisch'
+    if command == '/fröhlich': return ' sei dabei extrem fröhlich'
+    if command == '/verliebt': return ' tu so, als wärst du total in mich verliebt'
+    if command == '/wütend': return ' sei dabei extrem wütend'
+    if command == '/': sendTelegramMessage(telegram_bot_key, telegram_chat_id, 'Es gibt folgendes: /zynisch, /pesimistisch, /fröhlich, /verliebt, /wütend')
+    return ''
+
+
 def main():
     load_dotenv()
-
     telegram_bot_key = os.getenv('TELEGRAM_BOT_KEY')
     telegram_chat_id = os.getenv('TELEGRAM_CHAT_ID')
     openai_api_key = os.getenv('OPENAI_API_KEY')
 
-    print(openai_api_key)
-
-    oldMessage = ''
+    lastMessage = ''
     history = []
+    mood = ''
+
+    maxHistoryLength = 25
+    if(len(history) > maxHistoryLength):
+        history = history[len(history)-maxHistoryLength:]
 
     while True:
-        #try:
-        message = getLastTelegramMessage(telegram_bot_key)
-        if oldMessage != message:
-            if message == 'clear':
-                history = []
+        try:
+            message = getLastTelegramMessage(telegram_bot_key)
+            if message[0] == '/' and message != lastMessage:
+                mood = handleCommand(telegram_bot_key, telegram_chat_id, message)
+                print(mood)
+                lastMessage = message
+
             else:
-                print(f"Question: {message}")
-                history.append([{"role": "user", "content": message}])
-                answer = getChatGPTAnswer(openai_api_key, history)
-                print(f"Answer: {answer}\n")
-                history.append([{"role": "system", "content": answer}])
-                sendTelegramMessage(telegram_bot_key, telegram_chat_id, answer)
-                oldMessage = message
+                message += mood
+                if lastMessage != message and message[0] != '/':
+                    if message == 'clear':
+                        history = []
+                    else:
+                        print(f"Question: {message}")
+                        history.append([{"role": "user", "content": message}])
+                        answer = getChatGPTAnswer(openai_api_key, history)
+                        #answerToDisplay = answer.replace('\n', '%0A')
+                        print(f"Answer: {answer}\n")
+                        history.append([{"role": "system", "content": answer}])
+                        sendTelegramMessage(telegram_bot_key, telegram_chat_id, answer)
+                        lastMessage = message
 
-        #except:
-        #    e = sys.exc_info()[0]
-        #    answer = 'Oh fuck...'
-        #    print(answer)
-        #    print(e)
+        except:
+            e = sys.exc_info()[0]
+            answer = 'Oh fuck...'
+            print(answer)
+            print(e)
 
-        time.sleep(1)
+        time.sleep(2)
 
 if __name__ == "__main__":
     main()
